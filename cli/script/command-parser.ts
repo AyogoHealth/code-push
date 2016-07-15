@@ -23,7 +23,7 @@ export function showHelp(showRootDescription?: boolean): void {
             console.log("");
             console.log("CodePush is a service that allows you to publish mobile app updates directly to your users' devices.\n");
         }
-        
+
         yargs.showHelp();
         wasHelpShown = true;
     }
@@ -158,11 +158,12 @@ var argv = yargs.usage(USAGE_PREFIX + " <command>")
         addCommonConfiguration(yargs);
     })
     .command("release", "Release a new version of your app to a specific deployment", (yargs: yargs.Argv) => {
-        yargs.usage(USAGE_PREFIX + " release <appName> <package> <appStoreVersion> [--deploymentName <deploymentName>] [--description <description>] [--mandatory]")
+        yargs.usage(USAGE_PREFIX + " release <appName> <package> <appStoreVersion> [--deploymentName <deploymentName>] [--encryptionKey <key>] [--description <description>] [--mandatory]")
             .demand(/*count*/ 4, /*max*/ 4)  // Require exactly four non-option arguments.
             .example("release MyApp app.js 1.0.3", "Upload app.js to the default deployment for app \"MyApp\" with the required semver compliant app store version of 1.0.3")
             .example("release MyApp ./platforms/ios/www 1.0.3 -d Production", "Upload the \"./platforms/ios/www\" folder and all its contents to the \"Production\" deployment for app \"MyApp\" with the required semver compliant app store version of 1.0.3")
             .option("deploymentName", { alias: "d", default: "Staging", demand: false, description: "The deployment to publish the update to", type: "string" })
+            .option("encryptionKey", { demand: false, description: "The encryption key to use with this deployment", type: "string"})
             .option("description", { alias: "des", default: null, demand: false, description: "The description of changes made to the app with this update", type: "string" })
             .option("mandatory", { alias: "m", default: false, demand: false, description: "Whether this update should be considered mandatory to the client", type: "boolean" })
             .check((argv: any, aliases: { [alias: string]: string }) => {
@@ -176,7 +177,7 @@ var argv = yargs.usage(USAGE_PREFIX + " <command>")
         yargs.usage(USAGE_PREFIX + " promote <appName> <sourceDeploymentName> <destDeploymentName>")
             .demand(/*count*/ 4, /*max*/ 4)  // Require exactly four non-option arguments.
             .example("promote MyApp Staging Production", "Promote the latest \"Staging\" package of \"MyApp\" to \"Production\"");
-            
+
         addCommonConfiguration(yargs);
     })
     .command("deployment", "View and manage the deployments for your apps", (yargs: yargs.Argv) => {
@@ -269,7 +270,7 @@ function createCommand(): cli.ICommand {
                             (<cli.IAccessKeyAddCommand>cmd).description = arg2;
                         }
                         break;
-                        
+
                     case "list":
                     case "ls":
                         cmd = { type: cli.CommandType.accessKeyList };
@@ -402,12 +403,12 @@ function createCommand(): cli.ICommand {
 
             case "logout":
                 cmd = { type: cli.CommandType.logout };
-                
+
                 var logoutCommand = <cli.ILogoutCommand>cmd;
-                
+
                 logoutCommand.isLocal = argv["local"];
                 break;
-                
+
             case "promote":
                 if (arg1 && arg2 && arg3) {
                     cmd = { type: cli.CommandType.promote };
@@ -427,7 +428,7 @@ function createCommand(): cli.ICommand {
 
                 registerCommand.serverUrl = getServerUrl(arg1);
                 break;
-            
+
             case "release":
                 if (arg1 && arg2 && arg3) {
                     cmd = { type: cli.CommandType.release };
@@ -438,6 +439,7 @@ function createCommand(): cli.ICommand {
                     releaseCommand.package = arg2;
                     releaseCommand.appStoreVersion = arg3;
                     releaseCommand.deploymentName = argv["deploymentName"];
+                    releaseCommand.encryptionKey = argv["encryptionKey"];
                     releaseCommand.description = argv["description"];
                     releaseCommand.mandatory = argv["mandatory"];
                 }

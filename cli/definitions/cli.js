@@ -1,0 +1,20 @@
+(function (CommandType) {
+    CommandType[CommandType["accessKeyAdd"] = 0] = "accessKeyAdd";
+    CommandType[CommandType["accessKeyList"] = 1] = "accessKeyList";
+    CommandType[CommandType["accessKeyRemove"] = 2] = "accessKeyRemove";
+    CommandType[CommandType["appAdd"] = 3] = "appAdd";
+    CommandType[CommandType["appList"] = 4] = "appList";
+    CommandType[CommandType["appRemove"] = 5] = "appRemove";
+    CommandType[CommandType["appRename"] = 6] = "appRename";
+    CommandType[CommandType["deploymentAdd"] = 7] = "deploymentAdd";
+    CommandType[CommandType["deploymentList"] = 8] = "deploymentList";
+    CommandType[CommandType["deploymentRemove"] = 9] = "deploymentRemove";
+    CommandType[CommandType["deploymentRename"] = 10] = "deploymentRename";
+    CommandType[CommandType["deploymentHistory"] = 11] = "deploymentHistory";
+    CommandType[CommandType["login"] = 12] = "login";
+    CommandType[CommandType["logout"] = 13] = "logout";
+    CommandType[CommandType["promote"] = 14] = "promote";
+    CommandType[CommandType["register"] = 15] = "register";
+    CommandType[CommandType["release"] = 16] = "release";
+})(exports.CommandType || (exports.CommandType = {}));
+var CommandType = exports.CommandType;

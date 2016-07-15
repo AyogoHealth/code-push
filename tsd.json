@@ -76,6 +76,9 @@
     "moment/moment.d.ts": {
       "commit": "708609e0764daeb5eb64104af7aca50c520c4e6e"
     },
+    "crypto-js/crypto-js.d.ts": {
+      "commit": "708609e0764daeb5eb64104af7aca50c520c4e6e"
+    },
     "moment/moment-node.d.ts": {
       "commit": "708609e0764daeb5eb64104af7aca50c520c4e6e"
     }

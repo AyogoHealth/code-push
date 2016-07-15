@@ -100,6 +100,7 @@ export interface IRegisterCommand extends ICommand {
 export interface IReleaseCommand extends ICommand {
     appName: string;
     deploymentName: string;
+    encryptionKey: string;
     description: string;
     mandatory: boolean;
     appStoreVersion: string;

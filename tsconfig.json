@@ -4,5 +4,6 @@
         "noImplicitAny": true,
         "noResolve": true,
         "target": "ES5"
-    }
+    },
+    "compileOnSave": false
 }

@@ -25,6 +25,7 @@
   "license": "MIT",
   "dependencies": {
     "code-push": "1.2.0-beta",
+    "crypto-js": "^3.1.5",
     "base-64": "^0.1.0",
     "chalk": "^1.1.0",
     "cli-table": "^0.3.1",

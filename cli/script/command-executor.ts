@@ -15,6 +15,8 @@ import tryJSON = require("try-json");
 var Table = require("cli-table");
 import * as yazl from "yazl";
 import wordwrap = require("wordwrap");
+import crypto = require("crypto");
+import CryptoJS = require("crypto-js");
 
 import * as cli from "../definitions/cli";
 import { AccessKey, AccountManager, App, Deployment, DeploymentKey, Package } from "code-push";
@@ -49,22 +51,22 @@ export var loginWithAccessToken = (): Promise<void> => {
     }
 
     sdk = new AccountManager(connectionInfo.serverUrl);
-    
+
     var accessToken: string;
-    
+
     var standardLoginConnectionInfo: IStandardLoginConnectionInfo = <IStandardLoginConnectionInfo>connectionInfo;
     var accessKeyLoginConnectionInfo: IAccessKeyLoginConnectionInfo = <IAccessKeyLoginConnectionInfo>connectionInfo;
-    
+
     if (standardLoginConnectionInfo.providerName) {
-        accessToken = base64.encode(JSON.stringify({ 
-            accessKeyName: standardLoginConnectionInfo.accessKeyName, 
-            providerName: standardLoginConnectionInfo.providerName, 
-            providerUniqueId: standardLoginConnectionInfo.providerUniqueId 
+        accessToken = base64.encode(JSON.stringify({
+            accessKeyName: standardLoginConnectionInfo.accessKeyName,
+            providerName: standardLoginConnectionInfo.providerName,
+            providerUniqueId: standardLoginConnectionInfo.providerUniqueId
         }));
     } else {
         accessToken = accessKeyLoginConnectionInfo.accessKey;
     }
-    
+
     return sdk.loginWithAccessToken(accessToken);
 }
 
@@ -396,11 +398,16 @@ function generateRandomFilename(length: number): string {
     var filename: string = "";
     var validChar: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
+    var randomBytes = crypto.randomBytes(length);
+
+    var result = new Array(length);
+    var cursor = 0;
     for (var i = 0; i < length; i++) {
-        filename += validChar.charAt(Math.floor(Math.random() * validChar.length));
+        cursor += randomBytes[i];
+        result[i] = validChar[cursor % validChar.length];
     }
 
-    return filename;
+    return result.join('');
 }
 
 function getAccessKey(accessKeyName: string): Promise<AccessKey> {
@@ -532,7 +539,7 @@ function logout(command: cli.ILogoutCommand): Promise<void> {
                 .then((): Promise<string> => {
                     var standardLoginConnectionInfo: IStandardLoginConnectionInfo = <IStandardLoginConnectionInfo>connectionInfo;
                     var accessKeyLoginConnectionInfo: IAccessKeyLoginConnectionInfo = <IAccessKeyLoginConnectionInfo>connectionInfo;
-                    
+
                     if (standardLoginConnectionInfo.accessKeyName) {
                         accessKeyName = standardLoginConnectionInfo.accessKeyName;
                         return getAccessKeyId(standardLoginConnectionInfo.accessKeyName);
@@ -548,7 +555,7 @@ function logout(command: cli.ILogoutCommand): Promise<void> {
                     log("Removed access key " + accessKeyName + ".");
                 });
         }
-        
+
         return setupPromise
             .then((): Promise<void> => sdk.logout(), (): Promise<void> => sdk.logout())
             .then((): void => deleteConnectionInfoCache(), (): void => deleteConnectionInfoCache());
@@ -631,7 +638,7 @@ function getPackageString(packageObject: Package): string {
         (packageObject.description ? wordwrap(70)("Description: " + packageObject.description) + "\n" : "") +
         "App Version: " + packageObject.appVersion + "\n" +
         "Mandatory: " + (packageObject.isMandatory ? "Yes" : "No") + "\n" +
-        "Hash: " + packageObject.packageHash + "\n" + 
+        "Hash: " + packageObject.packageHash + "\n" +
         "Release Time: " + formatDate(packageObject.uploadTime);
 }
 
@@ -664,9 +671,9 @@ function printAccessKeys(format: string, keys: AccessKey[]): void {
         printTable(["Key", "Time Created", "Created From", "Description"], (dataSource: any[]): void => {
             keys.forEach((key: AccessKey): void => {
                 dataSource.push([
-                    key.name, 
+                    key.name,
                     key.createdTime ? formatDate(key.createdTime) : "",
-                    key.createdBy ? key.createdBy : "", 
+                    key.createdBy ? key.createdBy : "",
                     key.description ? key.description : ""
                 ]);
             });
@@ -695,7 +702,7 @@ function promote(command: cli.IPromoteCommand): Promise<void> {
     var appId: string;
     var sourceDeploymentId: string;
     var destDeploymentId: string;
-    
+
     return getAppId(command.appName)
         .then((appIdResult: string): Promise<string> => {
             throwForInvalidAppId(appIdResult, command.appName);
@@ -727,6 +734,7 @@ function release(command: cli.IReleaseCommand): Promise<void> {
                     throwForInvalidDeploymentId(deploymentId, command.deploymentName, command.appName);
 
                     var filePath: string = command.package;
+                    var encryptionKey: string = command.encryptionKey;
                     var getPackageFilePromise: Promise<IPackageFile>;
                     var isSingleFilePackage: boolean = true;
 
@@ -742,17 +750,37 @@ function release(command: cli.IReleaseCommand): Promise<void> {
                                 }
 
                                 var baseDirectoryPath = path.dirname(directoryPath);
-                                var fileName: string = generateRandomFilename(15) + ".zip";
+
+                                var randomName: string = generateRandomFilename(15);
+                                var fileName: string = randomName + ".zip";
                                 var zipFile = new yazl.ZipFile();
                                 var writeStream: fs.WriteStream = fs.createWriteStream(fileName);
+                                var stream = zipFile.outputStream;
 
-                                zipFile.outputStream.pipe(writeStream)
+                                if (encryptionKey) {
+                                  // Encrypt the zip file wiht OpenSSL style aes-256-cbc encryption.
+                                  var iv  = crypto.randomBytes(16);
+                                  var key = crypto.pbkdf2Sync(encryptionKey, iv.toString('hex'), 1, 32);
+                                  var key2 = CryptoJS.PBKDF2(encryptionKey, iv.toString('hex'), { keySize: 8, iterations: 1 });
+
+                                  console.log(key.toString('hex'), key2.toString());
+                                  var encryptStream = <any>crypto.createCipheriv("aes-256-cbc", key, iv); //node.d.ts has it wrong...
+
+                                  console.log("iv", iv, iv.toString('hex'));
+                                  console.log("key", key, key.toString('hex'));
+
+                                  //prepend the IV to the stream.
+                                  writeStream.write(iv);
+
+                                  stream = stream.pipe(encryptStream);
+                                }
+
+                                stream.pipe(writeStream)
                                     .on("error", (error: Error): void => {
                                         reject(error);
                                     })
                                     .on("close", (): void => {
                                         filePath = path.join(process.cwd(), fileName);
-
                                         resolve({ isTemporary: true, path: filePath });
                                     });
 
@@ -783,6 +811,10 @@ function release(command: cli.IReleaseCommand): Promise<void> {
                                         fs.unlinkSync(filePath);
                                     }
                                 });
+                        })
+                        .catch((err: Error) => {
+                          console.error(err);
+                          throw err;
                         });
                 });
         });
@@ -815,7 +847,7 @@ function serializeConnectionInfo(serverUrl: string, accessToken: string): void {
     // The access token should have been validated already (i.e.:  logging in).
     var json: string = tryBase64Decode(accessToken);
     var standardLoginConnectionInfo: IStandardLoginConnectionInfo = tryJSON(json);
-    
+
     if (standardLoginConnectionInfo) {
         // This is a normal login.
         standardLoginConnectionInfo.serverUrl = serverUrl;
@@ -843,7 +875,7 @@ function throwForMissingCredentials(accessKeyName: string, providerName: string,
     if (!accessKeyName) throw new Error("Access key is missing.");
     if (!providerName) throw new Error("Provider name is missing.");
     if (!providerUniqueId) throw new Error("Provider unique ID is missing.");
-    
+
 }
 
 function throwForInvalidAccessKeyId(accessKeyId: string, accessKeyName: string): void {
